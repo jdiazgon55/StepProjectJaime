@@ -26,7 +26,7 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
     private StepLengthReconstruction stepLengthReconstruction;
     private PathReconstruction pathReconstruction;
 
-    public static final String LOG_TAG = "SENSORBASED_POSITIONING";
+    public static final String LOG_TAG = "DETECTA_POSICIONES";
 
     private ProcessingVisualization processingVisualization;
 
@@ -49,11 +49,12 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
         //initSensors();
         initEventEmulation();
 
+        /*
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         if(!areAllRequiredSensorsPresent()) {
             ((TextView) findViewById(R.id.positioning_errorTV)).setText(R.string.error_missing_sensors);
             return;
-        }
+        }*/
 
     }
 

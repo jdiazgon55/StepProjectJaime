@@ -19,8 +19,11 @@ import processing.core.PVector;
 import processing.data.Table;
 import processing.data.TableRow;
 
+import processing.core.*;
+
+
 /**
- * Created by Fabi on 03.05.2017.
+ * Created by Fabian and Jaime on 03.05.2017.
  */
 
 public class ProcessingVisualization extends PApplet implements OnPathChangedListener {
@@ -43,8 +46,8 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
     float tiempoSiguientePaso = 100000.0f;
     PVector userPosition;
     int frames = 0, light = 55, colorChange = 5, fileNumber = 1;
-    PImage backgroundImage;
-
+    MovingBackground movingBackground;
+    PGraphics pg;
 
     public void setup() {
 
@@ -83,16 +86,16 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         matrizPasos = guardarDatosMatriz();
 
         userPosition = new PVector(width/2.0f, height/2.0f);
-        backgroundImage = loadImage("texture6.jpg");
-        //backgroundImage.resize(width, height);
-        float aspectRatio = backgroundImage.width/backgroundImage.height;
-        image(backgroundImage, 0, 0, width, width*aspectRatio );
-        image(backgroundImage, 0, width, width, width*aspectRatio );
+
+        movingBackground = new MovingBackground();
+
+        pg = createGraphics(width, height);
     }
 
     public void draw() {
         //background(255);
 
+        movingBackground.draw(userPosition);
         mqEst.run();
         if(mqEst.EstadoDeBoton() == ST_TRABAJANDO){
 
@@ -100,30 +103,25 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
             {
                 //Used for saving the direction of the user to a PNG
                 takeScreenShot = true;
-        /* C\u00f3digo para guardar conjunto de entrenamiento
-        TableRow nuevaFila = tabla.addRow();
-        nuevaFila.setFloat("AceleradorX",ax);
-        nuevaFila.setFloat("AceleradorY", ay);
-        nuevaFila.setFloat("AceleradorZ", az);
-        float modulo = sqrt((ax*ax) + (ay*ay) + (az*az));
-        nuevaFila.setFloat("Modulo", modulo);
-        saveTable(tabla, "/storage/emulated/0/CarpetaPasos/paso.csv");
-        milisegundos = millis();
-        */
+
                 if(pasoActual.size() >= 16){
                     if(hayPaso(pasoActual)){
                         pasosGlobal++;
                         //Changing position of user
-                        userPosition.x = userPosition.x + 20;
+                        userPosition.x = userPosition.x + 50;
+                        userPosition.y = userPosition.y - 50;
+                        movingBackground.paintLastPosition(userPosition);
                         //Si pasan menos de dos segundos entre dos pasos encontrados, significa que est\u00e1 andando y hay que contar dos pasos
                         if(abs(millis() - tiempoSiguientePaso) < 2000){
                             pasosGlobal++;
-                            userPosition.x = userPosition.x + 20;
+                            userPosition.x = userPosition.x + 50;
+                            userPosition.y = userPosition.y - 50;
                         }
                         tiempoSiguientePaso = millis();
                     }
                     pasoActual = new ArrayList<float[]>();
                 }
+                //Saving actual step
                 float[] array = new float[4];
                 array[0] = ax;
                 array[1] = ay;
@@ -136,23 +134,6 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         }
         else if( mqEst.EstadoDeBoton() == ST_DESACTIVADO) // && primeraEjecucion != 0 && !acabado
         {
-        /* C\u00f3digo para guardar conjunto de entrenamiento
-        TableRow nuevaFila = tabla.addRow();
-        nuevaFila.setString("AceleradorX","---");
-        nuevaFila.setString("AceleradorY", "---");
-        nuevaFila.setString("AceleradorZ", "---");
-        nuevaFila.setString("Modulo", "---");
-        saveTable(tabla, "/storage/emulated/0/CarpetaPasos/paso.csv");
-        */
-
-        /*
-        println(tablaLectura.getRowCount() + " total rows in table");
-        for (TableRow row : tablaLectura.rows())
-        {
-            println(row.getFloat(2));
-        }
-        acabado = true;
-        */
             //Code for saving the direction of the user to a png image
             if (takeScreenShot){
                 PImage screenShot = get();
@@ -162,29 +143,38 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
             }
         }
 
-  /* Code for drawing the user position */
-        strokeWeight(3.0f);
-        stroke(0, 0, 0);
+        // Dibujamos al usuario en el centro de la pantalla
+        paintPlayer();
+
+
+    }
+
+    public void paintPlayer(){
+    /* Code for drawing the user position */
+        pg.beginDraw();
+        pg.stroke(0, 0, 0);
 
         // Here it's easier with this color mode
-        colorMode(HSB, 360, 100, 100);
+        pg.colorMode(HSB, 360, 100, 100);
         light = colorEffect(light);
-        fill(210, 100, light);
-        strokeWeight(4.0f);
-        ellipse(userPosition.x, userPosition.y, width/8, width/8);
+        pg.fill(210, 100, light);
+        pg.strokeWeight(4.0f);
+        pg.ellipse(width/2.0f, height/2.0f, width/8, width/8);
         // We change the color mode back
-        colorMode(RGB, 255, 255, 255);
+        pg.colorMode(RGB, 255, 255, 255);
 
         //Drawing the direcction arrows
-        noFill();
-        stroke(255);
-        strokeWeight(10.0f);
-        strokeJoin(ROUND);
-        beginShape();
-        vertex(userPosition.x, userPosition.y + width/20);
-        vertex(userPosition.x + width/20, userPosition.y);
-        vertex(userPosition.x, userPosition.y - width/20);
-        endShape();
+        pg.noFill();
+        pg.stroke(255);
+        pg.strokeWeight(10.0f);
+        pg.strokeJoin(ROUND);
+        pg.beginShape();
+        pg.vertex(width/2.0f, height/2.0f + width/20);
+        pg.vertex(width/2.0f + width/20, height/2.0f);
+        pg.vertex(width/2.0f, height/2.0f - width/20);
+        pg.endShape();
+        pg.endDraw();
+        image(pg, 0, 0);
         //Finished drawing the direction arrows
     }
 
@@ -198,7 +188,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
                 //Coger solo de 16 en 16 elementos
                 boolean guardar = false;
                 for(int j = i; j < i + 16 && j < tablaLectura.getRowCount(); j++){
-                    TableRow fila = tablaLectura.getRow(j);
+                    TableRow  fila = tablaLectura.getRow(j);
                     if(Float.isNaN(fila.getFloat(0))){
                         i = i + j;
                         break;
@@ -279,7 +269,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
 
     public int colorEffect(int light){
         // Color effect for the ellipse, it changes it's colour gradually
-        if(frameCount - frames >= 4){
+        if(frameCount - frames >= 2){
             frames = frameCount;
             light = light + colorChange;
             if (light >= 95)
@@ -333,6 +323,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         int colorBoton = color(150, 150, 150);
         int estado = -1;
 
+
         Boton(float x, float y, float anch, float alt, String text){
             location = new PVector(x,y);
             alto = alt;
@@ -349,6 +340,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         }
 
         public void draw(){
+
             stroke(colorPincel);
             strokeWeight(anchoPincel);
             rectMode(CENTER);
@@ -365,6 +357,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
                 imageMode(CENTER);
                 image(imagen, location.x, location.y, ancho, alto);
             }
+
         }
 
 
@@ -546,6 +539,79 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
 
 
 
+    }
+    class MovingBackground{
+        PImage backgroundImage;
+        PVector positionsBack;
+        float aspectRatio = 0.0f;
+        int xScroll = 0, yScroll = 0, vecesTextura = 1;
+        PGraphics pgBack;
+        boolean repetirTextura = true;
+
+        int widthTile, heightTile;
+
+        MovingBackground(){
+            backgroundImage = loadImage("texture6.jpg");
+            aspectRatio = backgroundImage.width/backgroundImage.height;
+            positionsBack = new PVector(width/2, height/2);
+            pgBack = createGraphics(width, height);
+
+            widthTile = width/6;
+            heightTile = width/6;
+        }
+
+        public void setup(){
+
+        }
+
+        public void draw(PVector userPosition){
+            background(0);
+
+            // For creating an infinite scrolling
+            xScroll = ((int)userPosition.x % widthTile);
+            yScroll = ((int)userPosition.y % heightTile);
+
+            // The image must be bigger than the screen size
+            image(backgroundImage, xScroll - widthTile, width + yScroll - heightTile/2, (width + 2*widthTile), (width*aspectRatio) + 2*heightTile);
+            image(backgroundImage, xScroll - widthTile, yScroll - heightTile, (width + 2*widthTile), (width*aspectRatio) + 2*heightTile );
+
+            paintLastPosition(userPosition);
+        }
+
+        public void paintLastPosition(PVector userPosition){
+            // The last known position of the user
+            positionsBack.x = width - userPosition.x;
+            positionsBack.y = height - userPosition.y;
+
+
+    /* Code for drawing the user position */
+            pgBack.beginDraw();
+            pgBack.stroke(0, 0, 0);
+
+            // Here it's easier with this color mode
+            pgBack.colorMode(HSB, 360, 100, 100);
+            pgBack.fill(0, 0, 50);
+            pgBack.strokeWeight(5.0f);
+            pgBack.ellipse(positionsBack.x, positionsBack.y, width/8, width/8);
+            // We change the color mode back
+            pgBack.colorMode(RGB, 255, 255, 255);
+
+            //Drawing the direcction arrows
+            pgBack.noFill();
+            pgBack.stroke(255);
+            pgBack.strokeWeight(10.0f);
+            pgBack.strokeJoin(ROUND);
+            pgBack.beginShape();
+            pgBack.vertex(positionsBack.x, positionsBack.y + width/20);
+            pgBack.vertex(positionsBack.x + width/20, positionsBack.y);
+            pgBack.vertex(positionsBack.x, positionsBack.y - width/20);
+            pgBack.endShape();
+            pgBack.endDraw();
+            image(pgBack, 0, 0);
+            //Finished drawing the direction arrows
+
+
+        }
     }
     public void settings() {  fullScreen(); }
     static public void main(String[] passedArgs) {

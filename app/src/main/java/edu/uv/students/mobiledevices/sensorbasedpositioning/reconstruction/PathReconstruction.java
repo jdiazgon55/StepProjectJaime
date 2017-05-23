@@ -7,7 +7,7 @@ import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.data.
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnDirectionChangedListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnPathChangedListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnStepLengthChangedListener;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnStepListener;
+import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnStepRecognition;
 
 /**
  * Created by Fabi on 02.05.2017.
@@ -15,8 +15,7 @@ import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.inter
 
 public class PathReconstruction implements
         OnDirectionChangedListener,
-        OnStepLengthChangedListener,
-        OnStepListener {
+        OnStepLengthChangedListener{
 
     private final OnPathChangedListener pathChangedListener;
 
@@ -24,10 +23,6 @@ public class PathReconstruction implements
         pathChangedListener = pListener;
     }
 
-    @Override
-    public void onStep(StepData pStepData) {
-
-    }
 
     @Override
     public void onStepLengthChanged(StepLengthData pStepLengthData) {

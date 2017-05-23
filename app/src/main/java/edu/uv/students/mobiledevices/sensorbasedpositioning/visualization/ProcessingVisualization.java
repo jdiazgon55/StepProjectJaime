@@ -37,7 +37,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
     boolean acelerometroListo = false;
     int ST_DESACTIVADO = 0, ST_TRABAJANDO = 1;
     MaquinaEstados mqEst;
-    float ax, ay, az;
+    float ax, ay, az, norte = -10000.0f, rotacionActual, longitudPaso = 50.0f;
     boolean takeScreenShot = false;
     int pasosGlobal = 0;
     boolean acabado = false;
@@ -70,19 +70,13 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         tabla = new Table();
         tablaLectura = loadTable("paso.csv");
 
-        //A\u00f1ades las columnas
-        tabla.addColumn("AceleradorX");
-        tabla.addColumn("AceleradorY");
-        tabla.addColumn("AceleradorZ");
-        tabla.addColumn("Modulo");
-
         mqEst = new MaquinaEstados(ST_DESACTIVADO);
         mqEst.addState(ST_DESACTIVADO);
         Boton botonPrueba = new Boton(width/4.0f, height/14, width/2.5f, height/12.0f, "Calcular Pasos", 200);
         mqEst.btn2State(botonPrueba, ST_DESACTIVADO);
         mqEst.addState(ST_TRABAJANDO);
 
-        //Guarda en la matriz todo el conjunto de entrenamiento
+        //Guarda en la matriz el conjunto de entrenamiento
         matrizPasos = guardarDatosMatriz();
 
         userPosition = new PVector(width/2.0f, height/2.0f);
@@ -90,66 +84,46 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         movingBackground = new MovingBackground();
 
         pg = createGraphics(width, height);
+
+        //Pintamos por primera vez el fondo
+        movingBackground.draw(userPosition);
     }
 
     public void draw() {
-        //background(255);
-
-        movingBackground.draw(userPosition);
         mqEst.run();
         if(mqEst.EstadoDeBoton() == ST_TRABAJANDO){
 
-            if (millis() - milisegundos > 50 && acelerometroListo)
+            if (millis() - milisegundos > 20 && acelerometroListo)
             {
                 //Used for saving the direction of the user to a PNG
                 takeScreenShot = true;
-
-                if(pasoActual.size() >= 16){
-                    if(hayPaso(pasoActual)){
-                        pasosGlobal++;
-                        //Changing position of user
-                        userPosition.x = userPosition.x + 50;
-                        userPosition.y = userPosition.y - 50;
-                        movingBackground.paintLastPosition(userPosition);
-                        //Si pasan menos de dos segundos entre dos pasos encontrados, significa que est\u00e1 andando y hay que contar dos pasos
-                        if(abs(millis() - tiempoSiguientePaso) < 2000){
-                            pasosGlobal++;
-                            userPosition.x = userPosition.x + 50;
-                            userPosition.y = userPosition.y - 50;
-                        }
-                        tiempoSiguientePaso = millis();
-                    }
-                    pasoActual = new ArrayList<float[]>();
+                // Guardamos las aceleraciones y cuando tenemos listo el array, comprobamos si hay paso
+                if(guardarAceleracionesArray()){
+                    //Solo si ha habido un paso pintamos de nuevo
+                    movingBackground.draw(userPosition);
                 }
-                //Saving actual step
-                float[] array = new float[4];
-                array[0] = ax;
-                array[1] = ay;
-                array[2] = az;
-                float modulo = sqrt((ax*ax) + (ay*ay) + (az*az));
-                array[3] = modulo;
-                pasoActual.add(array);
-                milisegundos = millis();
             }
         }
         else if( mqEst.EstadoDeBoton() == ST_DESACTIVADO) // && primeraEjecucion != 0 && !acabado
         {
-            //Code for saving the direction of the user to a png image
+            //Code for saving the directions of the user to a png image
             if (takeScreenShot){
                 PImage screenShot = get();
                 screenShot.save("/storage/emulated/0/CarpetaPasos/userDirection" + fileNumber + ".png");
                 takeScreenShot = false;
                 fileNumber++;
+
+                // Cambiamos la orientación inicial
+                reiniciarNorte();
             }
         }
 
         // Dibujamos al usuario en el centro de la pantalla
         paintPlayer();
-
-
     }
 
-    public void paintPlayer(){
+
+    private void paintPlayer(){
     /* Code for drawing the user position */
         pg.beginDraw();
         pg.stroke(0, 0, 0);
@@ -159,7 +133,10 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         light = colorEffect(light);
         pg.fill(210, 100, light);
         pg.strokeWeight(4.0f);
-        pg.ellipse(width/2.0f, height/2.0f, width/8, width/8);
+        pg.pushMatrix();
+        pg.translate(width/2.0f, height/2.0f);
+        pg.rotate(rotacionActual);
+        pg.ellipse(0, 0, width/8, width/8);
         // We change the color mode back
         pg.colorMode(RGB, 255, 255, 255);
 
@@ -169,17 +146,88 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         pg.strokeWeight(10.0f);
         pg.strokeJoin(ROUND);
         pg.beginShape();
-        pg.vertex(width/2.0f, height/2.0f + width/20);
-        pg.vertex(width/2.0f + width/20, height/2.0f);
-        pg.vertex(width/2.0f, height/2.0f - width/20);
+        pg.vertex(- width/20, 0);
+        pg.vertex(0, - width/20);
+        pg.vertex(width/20, 0);
         pg.endShape();
+        pg.popMatrix();
         pg.endDraw();
         image(pg, 0, 0);
         //Finished drawing the direction arrows
     }
 
+    // Utilizamos la primera rotación recibida como nuestro Norte
+    public void setNorte(float north){
+        norte = north;
+    }
+
+    public float getNorte(){
+        return norte;
+    }
+
+    // Para cambiar de orientación inicial
+    private void reiniciarNorte(){
+        norte = -10000.0f;
+    }
+
+    // Calculamos nuestra rotación real
+    public void setRotacionActual(float rotacion){
+        float tempRotacion = rotacion - norte;
+        if (tempRotacion < 0){
+            rotacionActual = TWO_PI + tempRotacion;
+        }
+        else{
+            rotacionActual = rotacion - norte;
+        }
+
+        Log.i(Positioning.LOG_TAG, "Rotacion Verdadera: " + rotacionActual);
+        Log.i(Positioning.LOG_TAG, "Rotacion Norte: " + norte);
+    }
+
+    public boolean guardarAceleracionesArray(){
+        float[] array = new float[4];
+        array[0] = ax;
+        array[1] = ay;
+        array[2] = az;
+        float modulo = (array[0] * array[0]) + (array[1] * array[1]) + (array[2] * array[2]);
+        array[3] = modulo;
+        pasoActual.add(array);
+        if (pasoActual.size() >= 16) {
+            if(ejecutarComprobacionPaso(pasoActual)){
+                pasoActual = new ArrayList<float[]>();
+                milisegundos = millis();
+                return true;
+            }
+            pasoActual = new ArrayList<float[]>();
+            milisegundos = millis();
+        }
+        return false;
+    }
+
+    private boolean ejecutarComprobacionPaso(ArrayList<float[]> pasoComprobar){
+        if (hayPaso(pasoComprobar)) {
+            movingBackground.setRotacionAnterior(rotacionActual);
+            pasosGlobal++;
+
+            //Changing position of user
+            userPosition.x = userPosition.x + (longitudPaso*sin(rotacionActual));
+            userPosition.y = userPosition.y - (longitudPaso*cos(rotacionActual));
+            movingBackground.setDistanciaPaso(longitudPaso*sin(rotacionActual), longitudPaso*cos(rotacionActual));
+
+            //Si pasan menos de dos segundos entre dos pasos encontrados, significa que está andando y hay que contar dos pasos
+            if (abs(millis() - tiempoSiguientePaso) < 2000) {
+                pasosGlobal++;
+                userPosition.x = userPosition.x + (longitudPaso*sin(rotacionActual));
+                userPosition.y = userPosition.y - (longitudPaso*cos(rotacionActual));
+            }
+            tiempoSiguientePaso = millis();
+            return true;
+        }
+        return false;
+    }
+
     //Recoge el conjunto de entrenamiento y guarda todos los datos en una matriz de matrices [ [ [x,y,z,mod], [x,y,z,mod] ... ], [ [x,y,z,mod], [x,y,z,mod] ... ] ... ]
-    public ArrayList<ArrayList<float[]>> guardarDatosMatriz(){
+    private ArrayList<ArrayList<float[]>> guardarDatosMatriz(){
         ArrayList<ArrayList<float[]>> matrizPrincipal = new ArrayList<ArrayList<float[]>>();
         for (int i = 0; i < tablaLectura.getRowCount(); i++){
             //Mi primera fila contiene una string, no quiero cogerla
@@ -221,14 +269,14 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
     }
 
     // Devuelve true si hay paso
-    public boolean hayPaso(ArrayList<float[]> pasoComprobar){
-        if (calcularNumeroPicos(pasoComprobar) && calcularDistanciaEuclidea(pasoComprobar)){
+    private boolean hayPaso(ArrayList<float[]> pasoComprobar){
+        if (calcularNumeroPicosModulo(pasoComprobar) && calcularDistanciaEuclidea(pasoComprobar)){
             return true;
         }
         return false;
     }
 
-    public boolean calcularDistanciaEuclidea(ArrayList<float[]> vector){
+    private boolean calcularDistanciaEuclidea(ArrayList<float[]> vector){
         float averageVec = 0.0f;
         for (int i = 0; i < matrizPasos.size(); i++){
             ArrayList<float[]> matrizTemp = matrizPasos.get(i);
@@ -240,7 +288,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
             }
             averageVec = averageVec/matrizTemp.size();
             //println("Vec " + averageVec);
-            if (averageVec < 5.1f){
+            if (averageVec < 3.5f){
                 return true;
             }
             else{
@@ -251,23 +299,23 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         return false;
     }
 
-    public boolean calcularNumeroPicos(ArrayList<float[]> vector){
+    private boolean calcularNumeroPicosModulo(ArrayList<float[]> vector){
         int numeroPicos = 0;
         for(int j = 0; j < vector.size(); j++){
             float[] vec = vector.get(j);
             //println(vec[3]);
-            if(abs(vec[3]-9.0f) >= 1.5f || abs(vec[3]-9.0f) >= 2.5f){
+            if(vec[3] >= 98.0f || vec[3] <= 74.0f){
                 numeroPicos++;
             }
         }
         //println("Numero Picos: " + numeroPicos);
-        if (numeroPicos >= 6){
+        if (numeroPicos >= 8){
             return true;
         }
         return false;
     }
 
-    public int colorEffect(int light){
+    private int colorEffect(int light){
         // Color effect for the ellipse, it changes it's colour gradually
         if(frameCount - frames >= 2){
             frames = frameCount;
@@ -282,7 +330,6 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         }
         return light;
     }
-
 
     public void mousePressed(){
         mqEst.transite();
@@ -542,26 +589,29 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
     }
     class MovingBackground{
         PImage backgroundImage;
-        PVector positionsBack;
-        float aspectRatio = 0.0f;
+        PVector positionsBack, longitudDesplazamiento, lastPosition;
+        float aspectRatio = 0.0f, rotacionAnterior = 0.0f;
         int xScroll = 0, yScroll = 0, vecesTextura = 1;
         PGraphics pgBack;
         boolean repetirTextura = true;
+        private ArrayList<PVector> posicionesAnteriores;
+        private ArrayList<Float> rotacionesAnteriores;
 
         int widthTile, heightTile;
 
         MovingBackground(){
             backgroundImage = loadImage("texture6.jpg");
             aspectRatio = backgroundImage.width/backgroundImage.height;
-            positionsBack = new PVector(width/2, height/2);
             pgBack = createGraphics(width, height);
-
+            longitudDesplazamiento = new PVector(0.0f, 0.0f);
             widthTile = width/6;
             heightTile = width/6;
+
+            posicionesAnteriores = new ArrayList<PVector>();
+            rotacionesAnteriores = new ArrayList<Float>();
         }
 
         public void setup(){
-
         }
 
         public void draw(PVector userPosition){
@@ -579,38 +629,67 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         }
 
         public void paintLastPosition(PVector userPosition){
+
+            positionsBack = new PVector();
             // The last known position of the user
             positionsBack.x = width - userPosition.x;
             positionsBack.y = height - userPosition.y;
 
+            // We save the last user positions and rotation into this array
+            posicionesAnteriores.add(new PVector(width/2.0f, height/2.0f));
+            rotacionesAnteriores.add(rotacionAnterior);
 
-    /* Code for drawing the user position */
+            pgBack = createGraphics(width, height);
+
             pgBack.beginDraw();
-            pgBack.stroke(0, 0, 0);
+            //Pintamos todas las posiciones anteriores
+            for(int i = 0; i < posicionesAnteriores.size(); i++)
+            {
 
-            // Here it's easier with this color mode
-            pgBack.colorMode(HSB, 360, 100, 100);
-            pgBack.fill(0, 0, 50);
-            pgBack.strokeWeight(5.0f);
-            pgBack.ellipse(positionsBack.x, positionsBack.y, width/8, width/8);
-            // We change the color mode back
-            pgBack.colorMode(RGB, 255, 255, 255);
+                posicionesAnteriores.get(i).x = posicionesAnteriores.get(i).x + longitudDesplazamiento.x;
+                posicionesAnteriores.get(i).y = posicionesAnteriores.get(i).y + longitudDesplazamiento.y;
 
-            //Drawing the direcction arrows
-            pgBack.noFill();
-            pgBack.stroke(255);
-            pgBack.strokeWeight(10.0f);
-            pgBack.strokeJoin(ROUND);
-            pgBack.beginShape();
-            pgBack.vertex(positionsBack.x, positionsBack.y + width/20);
-            pgBack.vertex(positionsBack.x + width/20, positionsBack.y);
-            pgBack.vertex(positionsBack.x, positionsBack.y - width/20);
-            pgBack.endShape();
+                /* Code for drawing the user position */
+                pgBack.stroke(0, 0, 0);
+
+                // Here it's easier with this color mode
+                pgBack.colorMode(HSB, 360, 100, 100);
+                pgBack.fill(0, 0, 50);
+                pgBack.strokeWeight(5.0f);
+
+                pgBack.pushMatrix();
+                pgBack.translate(posicionesAnteriores.get(i).x, posicionesAnteriores.get(i).y);
+                pgBack.rotate(rotacionesAnteriores.get(i));
+                pgBack.ellipse(0, 0, width/8, width/8);
+                // We change the color mode back
+                pgBack.colorMode(RGB, 255, 255, 255);
+
+                //Drawing the direcction arrows
+                pgBack.noFill();
+                pgBack.stroke(255);
+                pgBack.strokeWeight(10.0f);
+                pgBack.strokeJoin(ROUND);
+                pgBack.beginShape();
+                pgBack.vertex(- width/20, 0);
+                pgBack.vertex(0, - width/20);
+                pgBack.vertex(width/20, 0);
+                pgBack.endShape();
+                pgBack.popMatrix();
+            }
             pgBack.endDraw();
             image(pgBack, 0, 0);
             //Finished drawing the direction arrows
 
 
+        }
+
+        public void setRotacionAnterior(float rotationNew){
+            rotacionAnterior = rotationNew;
+        }
+
+        public void setDistanciaPaso(float v, float v1) {
+            longitudDesplazamiento.x = -v;
+            longitudDesplazamiento.y = v1;
         }
     }
     public void settings() {  fullScreen(); }

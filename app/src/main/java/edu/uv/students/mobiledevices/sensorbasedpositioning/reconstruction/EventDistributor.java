@@ -1,10 +1,9 @@
 package edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction;
 
-import android.hardware.Sensor;
 import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.data.DirectionData;
@@ -17,7 +16,7 @@ import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.inter
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnMagneticFieldEventListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnPathChangedListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnStepLengthChangedListener;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnStepListener;
+import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnStepRecognition;
 
 /**
  * Created by Fabi on 02.05.2017.
@@ -27,7 +26,6 @@ import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.inter
 
 public class EventDistributor implements
         OnPathChangedListener,
-        OnStepListener,
         OnDirectionChangedListener,
         OnStepLengthChangedListener,
         OnAccelerometerEventListener,
@@ -35,7 +33,7 @@ public class EventDistributor implements
         OnMagneticFieldEventListener {
 
     private final LinkedList<OnPathChangedListener> onPathChangedListeners;
-    private final LinkedList<OnStepListener> onStepListeners;
+    private final LinkedList<OnStepRecognition> onStepListeners;
     private final LinkedList<OnDirectionChangedListener> onDirectionChangedListeners;
     private final LinkedList<OnStepLengthChangedListener> onStepLengthChangedListeners;
 
@@ -59,7 +57,7 @@ public class EventDistributor implements
         onPathChangedListeners.add(pListener);
     }
 
-    public void registerOnStepListener(OnStepListener pListener) {
+    public void registerOnStepListener(OnStepRecognition pListener) {
         onStepListeners.add(pListener);
     }
 
@@ -90,12 +88,6 @@ public class EventDistributor implements
     }
 
     @Override
-    public void onStep(StepData pStepData) {
-        for(OnStepListener listener : onStepListeners)
-            listener.onStep(pStepData);
-    }
-
-    @Override
     public void onDirectionChanged(DirectionData pDirectionData) {
         for(OnDirectionChangedListener listener : onDirectionChangedListeners)
             listener.onDirectionChanged(pDirectionData);
@@ -114,14 +106,14 @@ public class EventDistributor implements
     }
 
     @Override
-    public void onAccelerometerEvent(float pX, float pY, float pZ, long pTimeStamp_ns, int pAccuracy) {
+    public void onAccelerometerEvent(SensorEvent events, long pTimeStamp_ns, int pAccuracy) {
         for(OnAccelerometerEventListener listener : onAccelerometerEventListeners)
-            listener.onAccelerometerEvent(pX, pY, pZ, pTimeStamp_ns, pAccuracy);
+            listener.onAccelerometerEvent(events, pTimeStamp_ns, pAccuracy);
     }
 
     @Override
-    public void onMagneticFieldEvent(float pX, float pY, float pZ, long pTimeStamp_ns, int pAccuracy) {
+    public void onMagneticFieldEvent(SensorEvent events, long pTimeStamp_ns, int pAccuracy) {
         for(OnMagneticFieldEventListener listener : onMagneticSensorEventListeners)
-            listener.onMagneticFieldEvent(pX, pY, pZ, pTimeStamp_ns, pAccuracy);
+            listener.onMagneticFieldEvent(events, pTimeStamp_ns, pAccuracy);
     }
 }

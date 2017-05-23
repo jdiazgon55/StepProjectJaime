@@ -104,15 +104,13 @@ public class EventEmulator {
             Log.e(Positioning.LOG_TAG, "Error while reading file to emulate sensor events.", e);
         }
         for (final SensorEvent sensorEvent : sensorEvents) {
-            switch(sensorEvent.eventType) {
+            switch(sensorEvent.eventType) {/*
                 case ACCELEROMETER:
                     scheduler.schedule(new Runnable() {
                         @Override
                         public void run() {
                             eventDistributor.onAccelerometerEvent(
-                                    sensorEvent.values[0],
-                                    sensorEvent.values[1],
-                                    sensorEvent.values[2],
+                                    sensorEvent,
                                     sensorEvent.timeNs,
                                     SensorManager.SENSOR_STATUS_ACCURACY_HIGH);
                         }
@@ -136,14 +134,13 @@ public class EventEmulator {
                         @Override
                         public void run() {
                             eventDistributor.onMagneticFieldEvent(
-                                    sensorEvent.values[0],
-                                    sensorEvent.values[1],
-                                    sensorEvent.values[2],
+                                    sensorEvent,
                                     sensorEvent.timeNs,
                                     SensorManager.SENSOR_STATUS_ACCURACY_HIGH);
                         }
                     }, sensorEvent.timeNs, TimeUnit.NANOSECONDS);
                     break;
+                    */
             }
         }
     }

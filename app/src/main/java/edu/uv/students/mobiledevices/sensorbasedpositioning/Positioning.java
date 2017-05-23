@@ -8,6 +8,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.widget.TextView;
 
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.DirectionReconstruction;
@@ -28,12 +29,17 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
 
     public static final String LOG_TAG = "DETECTA_POSICIONES";
 
-    private ProcessingVisualization processingVisualization;
+    public static ProcessingVisualization processingVisualization;
 
+    private Context context;
     private SensorManager sensorManager;
     private Sensor accelerometer;
     private Sensor gyroscope;
     private Sensor magneticSensor;
+
+    private float[] arrayAceleracion;
+    private float[] arrayMagnetico;
+    private float primeraRotacion = -10000.0f;
 
 
     @Override
@@ -46,8 +52,8 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
 
         // Choose either to initialize the real sensors
         // or, for testing, use the event emulation
-        //initSensors();
-        initEventEmulation();
+        initSensors();
+        //initEventEmulation();
 
         /*
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -66,12 +72,20 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
     }
 
     private void initSensors() {
+        context = this.getApplicationContext();
+        sensorManager = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        //gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorManager.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorManager.registerListener(this, magneticSensor, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI);
+        //sensorManager.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(this, magneticSensor, SensorManager.SENSOR_DELAY_UI);
+    }
+
+    private void desactivarSensores(){
+        sensorManager.unregisterListener(this);
+        sensorManager.unregisterListener(this);
+        sensorManager.unregisterListener(this);
     }
 
     private void initProcessing() {
@@ -91,41 +105,49 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
 
     private void initReconstruction() {
         eventDistributor = new EventDistributor((SensorManager) getSystemService(Context.SENSOR_SERVICE));
-        stepReconstruction = new StepReconstruction(eventDistributor);
+        //stepReconstruction = new StepReconstruction(eventDistributor);
         directionReconstruction = new DirectionReconstruction(eventDistributor);
         stepLengthReconstruction = new StepLengthReconstruction(eventDistributor);
-        pathReconstruction = new PathReconstruction(eventDistributor);
+        //pathReconstruction = new PathReconstruction(eventDistributor);
         initEventDistribution();
     }
 
     private void initEventDistribution() {
-        // step reconstruction
-        eventDistributor.registerAccelerometerEventListener(stepReconstruction);
+        // Step reconstruction
+        //eventDistributor.registerAccelerometerEventListener(stepReconstruction);
 
         // direction reconstruction
-        eventDistributor.registerGyroscopeEventListener(directionReconstruction);
         eventDistributor.registerMagneticFieldEventListener(directionReconstruction);
+        eventDistributor.registerAccelerometerEventListener(directionReconstruction);
 
         //step length reconstruction
 
         // path reconstruction
-        eventDistributor.registerOnDirectionChangedListener(pathReconstruction);
-        eventDistributor.registerOnStepLengthChangedListener(pathReconstruction);
-        eventDistributor.registerOnStepListener(pathReconstruction);
+        //eventDistributor.registerOnDirectionChangedListener(pathReconstruction);
+        //eventDistributor.registerOnStepLengthChangedListener(pathReconstruction);
 
         // processing drawing
-        eventDistributor.registerOnPathChangedListener(processingVisualization);
+        //eventDistributor.registerOnPathChangedListener(processingVisualization);
     }
 
     @Override
     public void onSensorChanged(SensorEvent pEvent) {
-        if(pEvent.sensor==accelerometer) {
-            eventDistributor.onAccelerometerEvent(pEvent.values[0], pEvent.values[1], pEvent.values[2], pEvent.timestamp, pEvent.accuracy);
-        } else if(pEvent.sensor==gyroscope) {
-            eventDistributor.onGyroscopeEvent(pEvent.values[0], pEvent.values[1], pEvent.values[2], pEvent.timestamp, pEvent.accuracy);
-        } else if(pEvent.sensor==magneticSensor) {
-            eventDistributor.onMagneticFieldEvent(pEvent.values[0], pEvent.values[1], pEvent.values[2], pEvent.timestamp, pEvent.accuracy);
+        if(pEvent.sensor==magneticSensor) {
+            eventDistributor.onMagneticFieldEvent(pEvent, pEvent.timestamp, pEvent.accuracy);
         }
+        else if(pEvent.sensor==accelerometer){
+            eventDistributor.onAccelerometerEvent(pEvent, pEvent.timestamp, pEvent.accuracy);
+        }
+    }
+
+    public void onResume() {
+        super.onResume();
+        initSensors();
+    }
+
+    public void onPause() {
+        super.onPause();
+        desactivarSensores();
     }
 
     @Override

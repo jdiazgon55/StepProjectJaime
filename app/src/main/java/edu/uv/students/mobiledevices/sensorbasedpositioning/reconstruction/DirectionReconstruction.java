@@ -2,12 +2,9 @@ package edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction;
 
 import android.hardware.SensorEvent;
 import android.hardware.SensorManager;
-import android.util.Log;
 
 import edu.uv.students.mobiledevices.sensorbasedpositioning.Positioning;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.data.DirectionData;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnAccelerometerEventListener;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnDirectionChangedListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnMagneticFieldEventListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.visualization.ProcessingVisualization;
 
@@ -18,14 +15,12 @@ import static java.lang.Math.PI;
  */
 
 public class DirectionReconstruction implements OnMagneticFieldEventListener, OnAccelerometerEventListener {
-    private final OnDirectionChangedListener directionChangedListener;
     private float[] arrayAceleracion;
     private float[] arrayMagnetico;
     private float azimutAnterior = 0.0f;
     private ProcessingVisualization processingVisualization;
 
-    public DirectionReconstruction(OnDirectionChangedListener pListener) {
-        directionChangedListener = pListener;
+    public DirectionReconstruction() {
         this.processingVisualization = Positioning.processingVisualization;
     }
 

@@ -8,26 +8,19 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.DirectionReconstruction;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.EventDistributor;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.EventEmulator;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.PathReconstruction;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.StepLengthReconstruction;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.StepReconstruction;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.visualization.ProcessingVisualization;
 public class Positioning extends AppCompatActivity implements SensorEventListener {
 
     private EventDistributor eventDistributor;
 
-    private StepReconstruction stepReconstruction;
     private DirectionReconstruction directionReconstruction;
     private StepLengthReconstruction stepLengthReconstruction;
-    private PathReconstruction pathReconstruction;
 
     public static final String LOG_TAG = "DETECTA_POSICIONES";
 
@@ -48,13 +41,11 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
         initProcessing();
         initReconstruction();
 
-        // Choose either to initialize the real sensors
-        // or, for testing, use the event emulation
+        // Initialize the real sensors
         initSensors();
-        //initEventEmulation();
-
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        // Comprobamos si los sensores están presentes, en caso contrario se muestra un mensaje
         if(!areAllRequiredSensorsPresent()) {
             ((TextView) findViewById(R.id.positioning_errorTV)).setText(R.string.error_missing_sensors);
             return;
@@ -65,13 +56,6 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
             linearLayout.removeView(child);
         }
 
-    }
-
-    private void initEventEmulation() {
-        EventEmulator eventEmulator = new EventEmulator(eventDistributor);
-        // the EventEmulator provides different emulations for testing purposes
-        // eventEmulator.startEmulation01();
-        eventEmulator.startEmulationLoadedFromFile(getResources().openRawResource(R.raw.walking_in_flat),(long)(3*1e9));
     }
 
     private void initSensors() {
@@ -111,10 +95,8 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
 
     private void initReconstruction() {
         eventDistributor = new EventDistributor((SensorManager) getSystemService(Context.SENSOR_SERVICE));
-        //stepReconstruction = new StepReconstruction(eventDistributor);
-        directionReconstruction = new DirectionReconstruction(eventDistributor);
-        stepLengthReconstruction = new StepLengthReconstruction(eventDistributor);
-        //pathReconstruction = new PathReconstruction(eventDistributor);
+        directionReconstruction = new DirectionReconstruction();
+        stepLengthReconstruction = new StepLengthReconstruction();
         initEventDistribution();
     }
 

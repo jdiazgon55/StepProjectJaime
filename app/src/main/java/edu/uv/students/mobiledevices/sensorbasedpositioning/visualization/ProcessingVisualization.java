@@ -11,8 +11,6 @@ import java.io.File;
 import java.util.ArrayList;
 
 import edu.uv.students.mobiledevices.sensorbasedpositioning.Positioning;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.data.PathData;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnPathChangedListener;
 import processing.core.PApplet;
 import processing.core.PImage;
 import processing.core.PVector;
@@ -26,7 +24,7 @@ import processing.core.*;
  * Created by Fabian and Jaime on 03.05.2017.
  */
 
-public class ProcessingVisualization extends PApplet implements OnPathChangedListener {
+public class ProcessingVisualization extends PApplet {
     Context context;
     SensorManager manager;
     Sensor sensor;
@@ -798,9 +796,4 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         }
     }
 
-    @Override
-    public void onPathChanged(PathData pPathData) {
-        // convert pathdata to userposition
-        //Log.i(Positioning.LOG_TAG, "Path changed! time(ms): " + millis() + " angle: " + pPathData.angle + " way points: " + pPathData.positions.size() );
-    }
 }

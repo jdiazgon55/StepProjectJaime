@@ -6,7 +6,6 @@ import java.util.ArrayList;
 
 import edu.uv.students.mobiledevices.sensorbasedpositioning.Positioning;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnLinearAccelerationEventListener;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnStepLengthChangedListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.visualization.ProcessingVisualization;
 
 import static java.lang.StrictMath.abs;
@@ -17,13 +16,11 @@ import static java.lang.StrictMath.abs;
 
 public class StepLengthReconstruction implements OnLinearAccelerationEventListener{
 
-    private final OnStepLengthChangedListener stepLengthChangedListener;
     private ArrayList<Float> aceleracionY;
     private ProcessingVisualization processingVisualization;
     private float maxAceleracionY = 0.0f;
 
-    public StepLengthReconstruction(OnStepLengthChangedListener pListener) {
-        stepLengthChangedListener = pListener;
+    public StepLengthReconstruction() {
         aceleracionY = new ArrayList<Float>();
         this.processingVisualization = Positioning.processingVisualization;
     }

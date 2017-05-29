@@ -1,4 +1,5 @@
 <resources>
         <string name="app_name">Detecta-Posiciones</string>
-    <string name="error_missing_sensors">Not all needed sensors are present on this device.</string>
+    <string name="error_missing_sensors">La aplicación no funcionará correctamente en tu dispositivo
+        porque faltan sensores.</string>
 </resources>

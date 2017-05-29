@@ -8,20 +8,20 @@ import edu.uv.students.mobiledevices.sensorbasedpositioning.Positioning;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.data.DirectionData;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnAccelerometerEventListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnDirectionChangedListener;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnGyroscopeEventListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnMagneticFieldEventListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.visualization.ProcessingVisualization;
 
 import static java.lang.Math.PI;
 
 /**
- * Created by Fabi on 02.05.2017.
+ * Created by Fabi and Jaime on 02.05.2017.
  */
 
 public class DirectionReconstruction implements OnMagneticFieldEventListener, OnAccelerometerEventListener {
     private final OnDirectionChangedListener directionChangedListener;
     private float[] arrayAceleracion;
     private float[] arrayMagnetico;
+    private float azimutAnterior = 0.0f;
     private ProcessingVisualization processingVisualization;
 
     public DirectionReconstruction(OnDirectionChangedListener pListener) {
@@ -48,16 +48,17 @@ public class DirectionReconstruction implements OnMagneticFieldEventListener, On
             float I[] = new float[9];
 
             if (SensorManager.getRotationMatrix(R, I, arrayAceleracion, arrayMagnetico)) {
-
                 // orientation contains azimut, pitch and roll
                 float orientation[] = new float[3];
                 SensorManager.getOrientation(R, orientation);
 
                 float azimut = orientation[0];
 
-                //processingVisualization.setRotacionActual(azimut);
-                setRotation(azimut);
-                //Log.i(Positioning.LOG_TAG, "Direccion Azimut: " + azimut);
+                // Solo si hay un gran cambio en la rotación, cambiamos la orientación
+                if(azimut - azimutAnterior > 0.12 || azimut - azimutAnterior < -0.12) {
+                    setRotation(azimut);
+                    azimutAnterior = azimut;
+                }
             }
         }
     }

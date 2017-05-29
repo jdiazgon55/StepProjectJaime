@@ -9,6 +9,8 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.DirectionReconstruction;
@@ -34,12 +36,8 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
     private Context context;
     private SensorManager sensorManager;
     private Sensor accelerometer;
-    private Sensor gyroscope;
+    private Sensor linearAcceleration;
     private Sensor magneticSensor;
-
-    private float[] arrayAceleracion;
-    private float[] arrayMagnetico;
-    private float primeraRotacion = -10000.0f;
 
 
     @Override
@@ -55,12 +53,17 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
         initSensors();
         //initEventEmulation();
 
-        /*
+
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         if(!areAllRequiredSensorsPresent()) {
             ((TextView) findViewById(R.id.positioning_errorTV)).setText(R.string.error_missing_sensors);
             return;
-        }*/
+        }
+        else{
+            LinearLayout linearLayout = (LinearLayout)findViewById(R.id.layout_root);
+            final LinearLayout child = (LinearLayout) linearLayout.findViewById(R.id.layout_error);
+            linearLayout.removeView(child);
+        }
 
     }
 
@@ -74,12 +77,15 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
     private void initSensors() {
         context = this.getApplicationContext();
         sensorManager = (SensorManager)context.getSystemService(Context.SENSOR_SERVICE);
+
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        //gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        linearAcceleration = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         magneticSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+
         sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI);
         //sensorManager.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(this, magneticSensor, SensorManager.SENSOR_DELAY_UI);
+        sensorManager.registerListener(this, linearAcceleration, SensorManager.SENSOR_DELAY_GAME);
     }
 
     private void desactivarSensores(){
@@ -99,7 +105,7 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
     private boolean areAllRequiredSensorsPresent() {
         return
             sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null
-            && sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE) != null
+            && sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION) != null
             && sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD) != null;
     }
 
@@ -121,6 +127,7 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
         eventDistributor.registerAccelerometerEventListener(directionReconstruction);
 
         //step length reconstruction
+        eventDistributor.registerLinearAccelerationEventListener(stepLengthReconstruction);
 
         // path reconstruction
         //eventDistributor.registerOnDirectionChangedListener(pathReconstruction);
@@ -137,6 +144,9 @@ public class Positioning extends AppCompatActivity implements SensorEventListene
         }
         else if(pEvent.sensor==accelerometer){
             eventDistributor.onAccelerometerEvent(pEvent, pEvent.timestamp, pEvent.accuracy);
+        }
+        else if(pEvent.sensor==linearAcceleration){
+            eventDistributor.onLinearAccelerationEvent(pEvent, pEvent.timestamp);
         }
     }
 

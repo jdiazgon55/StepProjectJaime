@@ -12,7 +12,7 @@ import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.data.
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.data.StepLengthData;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnAccelerometerEventListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnDirectionChangedListener;
-import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnGyroscopeEventListener;
+import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnLinearAccelerationEventListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnMagneticFieldEventListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnPathChangedListener;
 import edu.uv.students.mobiledevices.sensorbasedpositioning.reconstruction.interfaces.OnStepLengthChangedListener;
@@ -29,7 +29,7 @@ public class EventDistributor implements
         OnDirectionChangedListener,
         OnStepLengthChangedListener,
         OnAccelerometerEventListener,
-        OnGyroscopeEventListener,
+        OnLinearAccelerationEventListener,
         OnMagneticFieldEventListener {
 
     private final LinkedList<OnPathChangedListener> onPathChangedListeners;
@@ -38,7 +38,7 @@ public class EventDistributor implements
     private final LinkedList<OnStepLengthChangedListener> onStepLengthChangedListeners;
 
     private final LinkedList<OnAccelerometerEventListener> onAccelerometerEventListeners;
-    private final LinkedList<OnGyroscopeEventListener> onGyroscopeEventListeners;
+    private final LinkedList<OnLinearAccelerationEventListener> onLinearAccelerationEventListeners;
     private final LinkedList<OnMagneticFieldEventListener> onMagneticSensorEventListeners;
 
 
@@ -49,7 +49,7 @@ public class EventDistributor implements
         onStepLengthChangedListeners = new LinkedList<>();
 
         onAccelerometerEventListeners = new LinkedList<>();
-        onGyroscopeEventListeners = new LinkedList<>();
+        onLinearAccelerationEventListeners = new LinkedList<>();
         onMagneticSensorEventListeners = new LinkedList<>();
     }
 
@@ -73,8 +73,8 @@ public class EventDistributor implements
         onAccelerometerEventListeners.add(pListener);
     }
 
-    public void registerGyroscopeEventListener(OnGyroscopeEventListener pListener) {
-        onGyroscopeEventListeners.add(pListener);
+    public void registerLinearAccelerationEventListener(OnLinearAccelerationEventListener pListener) {
+        onLinearAccelerationEventListeners.add(pListener);
     }
 
     public void registerMagneticFieldEventListener(OnMagneticFieldEventListener pListener) {
@@ -100,12 +100,6 @@ public class EventDistributor implements
     }
 
     @Override
-    public void onGyroscopeEvent(float pX, float pY, float pZ, long pTimeStamp_ns, int pAccuracy) {
-        for(OnGyroscopeEventListener listener : onGyroscopeEventListeners)
-            listener.onGyroscopeEvent(pX, pY, pZ, pTimeStamp_ns, pAccuracy);
-    }
-
-    @Override
     public void onAccelerometerEvent(SensorEvent events, long pTimeStamp_ns, int pAccuracy) {
         for(OnAccelerometerEventListener listener : onAccelerometerEventListeners)
             listener.onAccelerometerEvent(events, pTimeStamp_ns, pAccuracy);
@@ -115,5 +109,11 @@ public class EventDistributor implements
     public void onMagneticFieldEvent(SensorEvent events, long pTimeStamp_ns, int pAccuracy) {
         for(OnMagneticFieldEventListener listener : onMagneticSensorEventListeners)
             listener.onMagneticFieldEvent(events, pTimeStamp_ns, pAccuracy);
+    }
+
+    @Override
+    public void onLinearAccelerationEvent(SensorEvent events, long pTimeStamp_ns) {
+        for(OnLinearAccelerationEventListener listener : onLinearAccelerationEventListeners)
+            listener.onLinearAccelerationEvent(events, pTimeStamp_ns);
     }
 }

@@ -31,13 +31,12 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
     SensorManager manager;
     Sensor sensor;
     AccelerometerListener listener;
-    float milisegundos = 0.0f;
     Table tabla, tablaLectura;
     int primeraEjecucion = 0;
     boolean acelerometroListo = false;
-    int ST_DESACTIVADO = 0, ST_TRABAJANDO = 1;
+    int ST_DESACTIVADO = 0, ST_TRABAJANDO = 1, ST_NO_REINICIO = 2, ST_REINICIANDO = 3;
     MaquinaEstados mqEst;
-    float ax, ay, az, norte = -10000.0f, rotacionActual, longitudPaso = 50.0f;
+    float ax, ay, az, norte = -10000.0f, rotacionActual, longitudPaso = 50.0f, milisegundosPaso = 0.0f;
     boolean takeScreenShot = false;
     int pasosGlobal = 0;
     boolean acabado = false;
@@ -48,6 +47,10 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
     int frames = 0, light = 55, colorChange = 5, fileNumber = 1;
     MovingBackground movingBackground;
     PGraphics pg;
+    private boolean reiniciarMaxAceleracion = true;
+
+    private float maxAceleracionY = 0.0f;
+    int[] esta2 = new int[2];
 
     public void setup() {
 
@@ -61,7 +64,6 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         stroke(0);
         strokeWeight(2);
         background(0);
-        milisegundos = 0;
 
         //Solo para la primera vez
         File folder = new File("//sdcard/CarpetaPasos/");
@@ -72,9 +74,13 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
 
         mqEst = new MaquinaEstados(ST_DESACTIVADO);
         mqEst.addState(ST_DESACTIVADO);
-        Boton botonPrueba = new Boton(width/4.0f, height/14, width/2.5f, height/12.0f, "Calcular Pasos", 200);
-        mqEst.btn2State(botonPrueba, ST_DESACTIVADO);
         mqEst.addState(ST_TRABAJANDO);
+        mqEst.addState(ST_NO_REINICIO);
+        mqEst.addState(ST_REINICIANDO);
+        Boton botonPasos = new Boton(width/4.0f, height/14, width/2.5f, height/12.0f, "Calcular Pasos", 200);
+        Boton botonReiniciar = new Boton(width/1.3f, height/14, width/2.5f, height/12.0f, "Reiniciar", 200);
+        mqEst.btn2State(botonPasos, ST_DESACTIVADO);
+        mqEst.btn2State(botonReiniciar, ST_NO_REINICIO);
 
         //Guarda en la matriz el conjunto de entrenamiento
         matrizPasos = guardarDatosMatriz();
@@ -90,10 +96,14 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
     }
 
     public void draw() {
-        mqEst.run();
-        if(mqEst.EstadoDeBoton() == ST_TRABAJANDO){
 
-            if (millis() - milisegundos > 20 && acelerometroListo)
+        mqEst.run();
+
+        //Coge todos los estados activos
+        esta2 = mqEst.EstadoDeBoton();
+
+        if(esta2[0] == ST_TRABAJANDO){
+            if (acelerometroListo)
             {
                 //Used for saving the direction of the user to a PNG
                 takeScreenShot = true;
@@ -104,7 +114,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
                 }
             }
         }
-        else if( mqEst.EstadoDeBoton() == ST_DESACTIVADO) // && primeraEjecucion != 0 && !acabado
+        else if(esta2[0] == ST_DESACTIVADO) // && primeraEjecucion != 0 && !acabado
         {
             //Code for saving the directions of the user to a png image
             if (takeScreenShot){
@@ -112,10 +122,19 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
                 screenShot.save("/storage/emulated/0/CarpetaPasos/userDirection" + fileNumber + ".png");
                 takeScreenShot = false;
                 fileNumber++;
-
-                // Cambiamos la orientación inicial
-                reiniciarNorte();
             }
+        }
+        if (esta2[1] == ST_REINICIANDO){
+            //Limpiamos las posiciones y rotaciones anteriores
+            movingBackground.clearPosicionesAnteriores();
+            movingBackground.clearRotacionesAnteriores();
+            userPosition = new PVector(width/2.0f, height/2.0f);
+            movingBackground.draw(userPosition);
+            pasosGlobal = 0;
+            // Cambiamos la orientación inicial
+            reiniciarNorte();
+
+            mqEst.run();
         }
 
         // Dibujamos al usuario en el centro de la pantalla
@@ -179,9 +198,6 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         else{
             rotacionActual = rotacion - norte;
         }
-
-        Log.i(Positioning.LOG_TAG, "Rotacion Verdadera: " + rotacionActual);
-        Log.i(Positioning.LOG_TAG, "Rotacion Norte: " + norte);
     }
 
     public boolean guardarAceleracionesArray(){
@@ -192,33 +208,44 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         float modulo = (array[0] * array[0]) + (array[1] * array[1]) + (array[2] * array[2]);
         array[3] = modulo;
         pasoActual.add(array);
+
+        //Cogemos el tiempo del primer valor
+        if(pasoActual.size() == 1)
+            milisegundosPaso = millis();
+
         if (pasoActual.size() >= 16) {
-            if(ejecutarComprobacionPaso(pasoActual)){
+            //Pasamos el paso actual y el tiempo que ha tardado;
+            if(ejecutarComprobacionPaso(pasoActual, millis() - milisegundosPaso)){
                 pasoActual = new ArrayList<float[]>();
-                milisegundos = millis();
+                milisegundosPaso = 0.0f;
+                setReiniciarMaxAceleracion(true);
                 return true;
             }
             pasoActual = new ArrayList<float[]>();
-            milisegundos = millis();
+            milisegundosPaso = 0.0f;
         }
         return false;
     }
 
-    private boolean ejecutarComprobacionPaso(ArrayList<float[]> pasoComprobar){
-        if (hayPaso(pasoComprobar)) {
+    private boolean ejecutarComprobacionPaso(ArrayList<float[]> pasoComprobar, float tiempo){
+        if (hayPaso(pasoComprobar, tiempo)) {
             movingBackground.setRotacionAnterior(rotacionActual);
             pasosGlobal++;
 
+            float movimientoX = (longitudPaso*sin(rotacionActual));
+            float movimientoY = (longitudPaso*cos(rotacionActual));
+            Log.i(Positioning.LOG_TAG, "Longitud Paso: " + longitudPaso);
             //Changing position of user
-            userPosition.x = userPosition.x + (longitudPaso*sin(rotacionActual));
-            userPosition.y = userPosition.y - (longitudPaso*cos(rotacionActual));
-            movingBackground.setDistanciaPaso(longitudPaso*sin(rotacionActual), longitudPaso*cos(rotacionActual));
-
-            //Si pasan menos de dos segundos entre dos pasos encontrados, significa que está andando y hay que contar dos pasos
-            if (abs(millis() - tiempoSiguientePaso) < 2000) {
+            userPosition.x = userPosition.x + movimientoX;
+            userPosition.y = userPosition.y - (movimientoY);
+            movingBackground.setDistanciaPaso(movimientoX, movimientoY);
+            movingBackground.setPosicionesYRotaciones();
+            //Si pasan menos de dos segundos y medio entre dos pasos encontrados, significa que está andando y hay que contar dos pasos
+            if (abs(millis() - tiempoSiguientePaso) < 2500) {
                 pasosGlobal++;
-                userPosition.x = userPosition.x + (longitudPaso*sin(rotacionActual));
-                userPosition.y = userPosition.y - (longitudPaso*cos(rotacionActual));
+                userPosition.x = userPosition.x + (movimientoX);
+                userPosition.y = userPosition.y - (movimientoY);
+                movingBackground.setPosicionesYRotaciones();
             }
             tiempoSiguientePaso = millis();
             return true;
@@ -269,15 +296,29 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
     }
 
     // Devuelve true si hay paso
-    private boolean hayPaso(ArrayList<float[]> pasoComprobar){
+    private boolean hayPaso(ArrayList<float[]> pasoComprobar, float tiempo){
         if (calcularNumeroPicosModulo(pasoComprobar) && calcularDistanciaEuclidea(pasoComprobar)){
+            //Calculamos la longitud del paso, lo relativizamos según el tamaño de pantalla y lo ponemos
+            setLongitudPaso(calcularLongitudRelativa(calcularLongitudPaso(tiempo)));
             return true;
         }
         return false;
     }
 
+    private float calcularLongitudRelativa(float longitudR) {
+        //El 100 es porque son 100cm = 1 metro
+        return (longitudR*movingBackground.getWidthTile())/100;
+    }
+
+    private float calcularLongitudPaso(float tiempo) {
+        //Log.i(Positioning.LOG_TAG, "Longitud del Paso: " + (2*((tiempo/100)*(maxAceleracionY))));
+        //El 2 es porque sale mejor el calculo así
+        return 4*((tiempo/100)*(maxAceleracionY));
+    }
+
     private boolean calcularDistanciaEuclidea(ArrayList<float[]> vector){
         float averageVec = 0.0f;
+        int numDistanciasPequenyas = 0;
         for (int i = 0; i < matrizPasos.size(); i++){
             ArrayList<float[]> matrizTemp = matrizPasos.get(i);
             for(int j = 0; j < matrizTemp.size(); j++){
@@ -287,9 +328,11 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
                 averageVec += distanciaVec;
             }
             averageVec = averageVec/matrizTemp.size();
-            //println("Vec " + averageVec);
+            //Log.i(Positioning.LOG_TAG, "numDistanciasPequenyas: " + numDistanciasPequenyas);
             if (averageVec < 3.5f){
-                return true;
+                numDistanciasPequenyas++;
+                if (numDistanciasPequenyas > 3)
+                    return true;
             }
             else{
                 averageVec = 0.0f;
@@ -331,6 +374,24 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         return light;
     }
 
+    public void setLongitudPaso(float longitudPaso) {
+        this.longitudPaso = longitudPaso;
+    }
+
+    public void setMaxAceleracionY(float maxAceleracionY) {
+        this.maxAceleracionY = maxAceleracionY;
+    }
+
+    //Nos dice cuando debemos borrar la máxima aceleración
+    public void setReiniciarMaxAceleracion(boolean reiniciarMaxAceleracion) {
+        this.reiniciarMaxAceleracion = reiniciarMaxAceleracion;
+    }
+
+    //Nos dice cuando debemos borrar la máxima aceleración
+    public boolean getReiniciarMaxAceleracion() {
+        return this.reiniciarMaxAceleracion;
+    }
+
     public void mousePressed(){
         mqEst.transite();
     }
@@ -366,7 +427,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         String texto;
         boolean botonApretado = false, hayImagen = false;
         int colorTexto = 0, anchoPincel = 2, colorPincel = 0, idCarta = -1;
-        public int primer_est = 0, actual_est = 0, num_est = 2;
+        public int primer_est = 0, actual_est = 0, num_est = 4;
         int colorBoton = color(150, 150, 150);
         int estado = -1;
 
@@ -432,22 +493,6 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
             return this.ancho;
         }
 
-        public boolean RatonApretado(){
-            if (this.EstaMouseDentro()){
-                this.CambiarColor(30);
-                botonApretado = true;
-            }
-            return botonApretado;
-        }
-
-        public void RatonLiberado(){
-            if (botonApretado == true)
-            {
-                this.CambiarColor(-30);
-                botonApretado = false;
-            }
-        }
-
 
         public boolean EstaMouseDentro(){
             boolean dentro = false;
@@ -469,7 +514,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         }
     }
     class Estado {
-        int ST_DESACTIVADO = 0, ST_TRABAJANDO = 1;
+        int ST_DESACTIVADO = 0, ST_TRABAJANDO = 1, ST_NO_REINICIO = 2, ST_REINICIANDO = 3;
         int id;
         ArrayList<PImage> imagenes;
         ArrayList<Boton> botones;
@@ -497,12 +542,26 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
                     botonTmp.draw();
                 }
             }
+            else if (id == ST_NO_REINICIO){
+                for(int i = 0; i < botones.size(); i++){
+                    Boton botonTmp = botones.get(i);
+                    botonTmp.setTexto("Reiniciar");
+                    botonTmp.draw();
+                }
+            }
+            else if (id == ST_REINICIANDO){
+                for(int i = 0; i < botones.size(); i++){
+                    Boton botonTmp = botones.get(i);
+                    botonTmp.setTexto("Reiniciando...");
+                    botonTmp.draw();
+                }
+            }
         }
 
         public int transite(){
             for(int i = 0; i < botones.size(); i++){
                 if(botones.get(i).EstaMouseDentro()){
-                    //Devuelvo el id del bot\u00f3n que ha sido apretado
+                    //Devuelvo el id del botón que ha sido apretado
                     return i;
                 }
             }
@@ -514,7 +573,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         int estado;
         ArrayList<Estado> estados;
         boolean finPartida = false;
-        int ST_DESACTIVADO = 0, ST_TRABAJANDO = 1;
+        int ST_DESACTIVADO = 0, ST_TRABAJANDO = 1, ST_NO_REINICIO = 2, ST_REINICIANDO = 3;
 
         MaquinaEstados(int _e){
             estado = _e;
@@ -545,7 +604,7 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         }
 
         public void transite(){
-            //Comprobamos en qu\u00e9 estado se ha producido el mousePressed()
+            //Comprobamos en qué estado se ha producido el mousePressed()
             for(int i = 0; i < estados.size(); i++){
                 Estado estadoTmp = estados.get(i);
                 int idBotonApretado = estadoTmp.transite();
@@ -556,12 +615,32 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
 
                     if(estadoTmp.id == ST_TRABAJANDO){
                         botonTmp.CambiarColor(-40);
+                        if(new_st > 1)
+                            new_st = 0;
                         estados.get(new_st).botones.add(botonTmp);
                         estadoTmp.botones.remove(idBotonApretado);
                         break;
                     }
                     else if(estadoTmp.id == ST_DESACTIVADO){
                         botonTmp.CambiarColor(40);
+                        if(new_st > 1)
+                            new_st = 1;
+                        estados.get(new_st).botones.add(botonTmp);
+                        estadoTmp.botones.remove(idBotonApretado);
+                        break;
+                    }
+                    else if(estadoTmp.id == ST_NO_REINICIO){
+                        botonTmp.CambiarColor(40);
+                        if(new_st < 2)
+                            new_st = 3;
+                        estados.get(new_st).botones.add(botonTmp);
+                        estadoTmp.botones.remove(idBotonApretado);
+                        break;
+                    }
+                    else if(estadoTmp.id == ST_REINICIANDO){
+                        botonTmp.CambiarColor(-40);
+                        if(new_st < 2)
+                            new_st = 2;
                         estados.get(new_st).botones.add(botonTmp);
                         estadoTmp.botones.remove(idBotonApretado);
                         break;
@@ -575,13 +654,16 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
             return this.estados.size();
         }
 
-        public int EstadoDeBoton(){
+        public int[] EstadoDeBoton(){
+            int[] est = new int[2];
+            int control = 0;
             for(int i = 0; i < estados.size(); i++){
                 if(estados.get(i).botones.size() > 0){
-                    return i;
+                    est[control] = i;
+                    control++;
                 }
             }
-            return -1;
+            return est;
         }
 
 
@@ -615,8 +697,6 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
         }
 
         public void draw(PVector userPosition){
-            background(0);
-
             // For creating an infinite scrolling
             xScroll = ((int)userPosition.x % widthTile);
             yScroll = ((int)userPosition.y % heightTile);
@@ -634,10 +714,6 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
             // The last known position of the user
             positionsBack.x = width - userPosition.x;
             positionsBack.y = height - userPosition.y;
-
-            // We save the last user positions and rotation into this array
-            posicionesAnteriores.add(new PVector(width/2.0f, height/2.0f));
-            rotacionesAnteriores.add(rotacionAnterior);
 
             pgBack = createGraphics(width, height);
 
@@ -687,9 +763,29 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
             rotacionAnterior = rotationNew;
         }
 
+        //Usado para determinar hacia donde va el usuario
         public void setDistanciaPaso(float v, float v1) {
             longitudDesplazamiento.x = -v;
             longitudDesplazamiento.y = v1;
+        }
+
+        //Ponemos la nueva posición en el array
+        public void setPosicionesYRotaciones(){
+            // We save the last user positions and rotation into this array
+            posicionesAnteriores.add(new PVector(width/2.0f, height/2.0f));
+            rotacionesAnteriores.add(rotacionAnterior);
+        }
+
+        public void clearPosicionesAnteriores(){
+            posicionesAnteriores = new ArrayList<PVector>();
+        }
+
+        public void clearRotacionesAnteriores(){
+            rotacionesAnteriores = new ArrayList<Float>();
+        }
+
+        public float getWidthTile(){
+            return widthTile;
         }
     }
     public void settings() {  fullScreen(); }
@@ -705,6 +801,6 @@ public class ProcessingVisualization extends PApplet implements OnPathChangedLis
     @Override
     public void onPathChanged(PathData pPathData) {
         // convert pathdata to userposition
-        Log.i(Positioning.LOG_TAG, "Path changed! time(ms): " + millis() + " angle: " + pPathData.angle + " way points: " + pPathData.positions.size() );
+        //Log.i(Positioning.LOG_TAG, "Path changed! time(ms): " + millis() + " angle: " + pPathData.angle + " way points: " + pPathData.positions.size() );
     }
 }
